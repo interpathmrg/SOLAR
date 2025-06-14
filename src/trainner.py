@@ -10,9 +10,6 @@ de la irradiación total GHI y el calculo de la energía producida
 por el parque.
 -------------------------------------------------------------------------------
 """
-
-# modelo_predictivo.py
-
 import pandas as pd
 import numpy as np
 from xgboost import XGBRegressor
@@ -22,26 +19,24 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import joblib
 
-# === CARGA Y PREPROCESAMIENTO ===
-file_path = "/home/mrgonzalez/Desktop/PYTHON/SOLAR/data/2017.csv"
-df = pd.read_csv(file_path)
+# === CARGA DEL DATASET DESDE PARQUET ===
+file_path = "../result/clean_featured.parquet"
+df = pd.read_parquet(file_path)
 
-df = df.drop(columns=["Unnamed: 18"], errors="ignore")
-df = df[df["GHI"] > 5]  # descarta valores bajos cerca del amanecer/anochecer
-df["Timestamp"] = pd.to_datetime(df[["Year", "Month", "Day", "Hour", "Minute"]])
-df.set_index("Timestamp", inplace=True)
-
-# Eliminar filas sin GHI
-df = df.dropna(subset=["GHI"])
-
-# Selección de características
-features = ["Temperature", "Relative Humidity", "DNI", "DHI", "Wind Speed", "Pressure"]
+# === SELECCIÓN DE FEATURES ===
+features = [
+    "temperature", "relative-humidity", "kt", "deltaT",
+    "GHI_lag_1h", "GHI_lag_2h", "GHI_lag_3h", "GHI_roll3h",
+    "wind-speed", "barometric-preasure", "wind_u", "wind_v",
+    "temp_roll3h", "dewpoint",
+    "sin_hour", "cos_hour", "sin_doy", "cos_doy"
+]
 target = "GHI"
 
 X = df[features]
 y = df[target]
 
-# División temporal en train/test
+# === DIVISIÓN TRAIN/TEST TEMPORAL ===
 split_index = int(len(df) * 0.8)
 X_train, X_test = X.iloc[:split_index], X.iloc[split_index:]
 y_train, y_test = y.iloc[:split_index], y.iloc[split_index:]
@@ -54,8 +49,16 @@ model.fit(X_train, y_train)
 y_pred = model.predict(X_test)
 mae = mean_absolute_error(y_test, y_pred)
 rmse = np.sqrt(mean_squared_error(y_test, y_pred))
-print(f"MAE: {mae:.2f}")
-print(f"RMSE: {rmse:.2f}")
+r2 = r2_score(y_test, y_pred)
+print("[*]")
+print(f"MAE: {mae:.2f} es la desviación promedio en W/m² entre la predicción y el valor real.")
+print(f"RMSE: {rmse:.2f} penaliza errores grandes, por lo que si hay outliers o picos, RMSE será más alto que MAE.")
+print(f"R²: {r2:.3f} ")
+print("Interpretación R²:")
+print("1.0 → predicción perfecta")
+print("0.0 → el modelo no mejora nada sobre el promedio")
+print("< 0 → el modelo es peor que simplemente usar el promedio")
+
 
 # === GRAFICO 1: IMPORTANCIA DE VARIABLES ===
 plt.figure(figsize=(10, 5))
@@ -64,7 +67,8 @@ plt.title("Importancia de las variables (XGBoost)")
 plt.xlabel("Importancia")
 plt.ylabel("Variable")
 plt.tight_layout()
-plt.show()
+#plt.show()
+plt.savefig("../graph/trainner-variables-importancia.png", dpi=150)
 
 # === GRAFICO 2: PREDICCIONES VS VALORES REALES ===
 plt.figure(figsize=(6, 6))
@@ -75,9 +79,8 @@ plt.ylabel("GHI predicho")
 plt.title("Dispersión: GHI real vs predicho")
 plt.grid(True)
 plt.tight_layout()
-plt.show()
-
-
+#plt.show()
+plt.savefig("../graph/treinner-predvsreal.png", dpi=150)
 
 # === GRAFICO 3: ERROR RESIDUAL ===
 errores = y_test - y_pred
@@ -85,19 +88,18 @@ plt.figure(figsize=(10, 4))
 plt.plot(errores.values, alpha=0.5)
 plt.title("Error residual (GHI real - predicho)")
 plt.xlabel("Índice")
-plt.ylabel("Error (W/m²)")
+plt.ylabel("Error (W/m²")
 plt.grid(True)
 plt.tight_layout()
-plt.show()
+#plt.show()
+plt.savefig("../graph/trainner-error-residual.png", dpi=150)
 
-
-# === MÉTRICA ADICIONAL: R² ===
-r2 = r2_score(y_test, y_pred)
-print(f"R²: {r2:.3f}")
-
-# === GRAFICO 4: Error absoluto promedio por hora del día ===
+# === GRAFICO 4: ERROR ABSOLUTO MEDIO POR HORA ===
+X_test = X_test.copy()
 X_test["ErrorAbs"] = np.abs(y_test - y_pred)
+# El índice de X_test ya es datetime, tomamos la hora directamente
 X_test["Hour"] = X_test.index.hour
+
 errores_por_hora = X_test.groupby("Hour")["ErrorAbs"].mean()
 
 plt.figure(figsize=(10, 4))
@@ -107,8 +109,20 @@ plt.xlabel("Hora del día")
 plt.ylabel("Error absoluto (W/m²)")
 plt.grid(axis='y')
 plt.tight_layout()
-plt.show()
+plt.savefig("../graph/trainner-error-hora.png", dpi=150)
 
-# === GUARDAR MODELO ===
-joblib.dump(model, "/home/mrgonzalez/Desktop/PYTHON/SOLAR/result/modelo_xgboost_GHI.joblib")
+# === GRAFICO 5: PREDICCIÓN VS TIEMPO ===
+plt.figure(figsize=(12, 4))
+plt.plot(y_test.values[:500], label="GHI real")
+plt.plot(y_pred[:500], label="GHI predicho", alpha=0.7)
+plt.title("Comparación GHI real vs. predicho (primeros 500 registros)")
+plt.xlabel("Índice temporal")
+plt.ylabel("GHI (W/m²)")
+plt.legend()
+plt.grid(True)
+plt.tight_layout()
+plt.savefig("../graph/trainner-GHIvspredicho.png", dpi=150)
+
+# === GUARDAR MODELO ENTRENADO ===
+joblib.dump(model, "../result/modelo_xgboost_GHI.joblib")
 print("Modelo guardado como 'modelo_xgboost_GHI.joblib'")

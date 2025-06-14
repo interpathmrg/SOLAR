@@ -1,9 +1,0 @@
-Dataset extraido de:
-https://www.kaggle.com/datasets/ibrahimkiziloklu/solar-radiation-dataset
-
-En el contexto de la radiación solar, DHI, DNI, GHI, Albedo de superficie y Ángulo cenital solar son términos clave que describen la distribución y características de la energía solar que llega a la superficie terrestre.
-DHI (Irradiancia Horizontal Difusa):La parte de la radiación solar que llega a la Tierra de forma indirecta, después de ser difractada o dispersada por la atmósfera (nubes, polvo, vapor de agua, etc.). 
-DNI (Irradiancia Normal Directa):La parte de la radiación solar que llega a la Tierra directamente desde el sol, sin ser afectada por la atmósfera. 
-GHI (Irradiancia Horizontal Global):La suma total de DHI y DNI, es decir, la cantidad total de radiación solar que llega a una superficie horizontal en un determinado lugar y momento. 
-Albedo de superficie:La fracción de radiación solar incidente que es reflejada por la superficie de la Tierra. Por ejemplo, la nieve tiene un albedo alto, mientras que el suelo oscuro tiene un albedo bajo. 
-Ángulo cenital solar:El ángulo entre la dirección del Sol y el punto directamente arriba de la Tierra (el zenit). Un ángulo cenital solar pequeño significa que el Sol está alto en el cielo, mientras que un ángulo cenital solar grande significa que el Sol está bajo. 
